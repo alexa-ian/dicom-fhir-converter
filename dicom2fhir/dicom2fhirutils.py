@@ -190,7 +190,7 @@ def gen_started_datetime(dt, tm):
     dt_date = datetime.strptime(dt_string, dt_pattern)
 
     # strangely, providing the datetime.date object does not work
-    fhirDtm = fhirtypes.DateTime(
+    fhirDtm = fhirtypes.DateTimeType(
         dt_date.year,
         dt_date.month,
         dt_date.day,
