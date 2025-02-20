@@ -3,7 +3,6 @@ import os
 from fhir.resources import R4B as fr
 from fhir.resources.R4B import reference
 from fhir.resources.R4B import imagingstudy
-from fhir.resources.R4B import device
 from fhir.resources.R4B import identifier
 from fhir.resources.R4B import meta
 from pydicom import dcmread
@@ -21,10 +20,12 @@ from dicom2fhir import extension_NM
 from dicom2fhir import extension_contrast
 from dicom2fhir import extension_instance
 from dicom2fhir import extension_reason
+from dicom2fhir import create_device
 
 
 # global list for all distinct series modalities
 study_list_modality_global = []
+devices_list_global = []
 
 
 def _add_imaging_study_instance(
@@ -140,26 +141,6 @@ def _add_imaging_study_series(study: imagingstudy.ImagingStudy, ds: dataset.File
     except Exception:
         pass
 
-    try:
-        dev = device.Device()
-        dev.deviceName = [
-            {
-                "type": "model-name",
-                "name": ds.ManufacturerModelName
-            }
-        ]
-        dev.manufacturer = ds.Manufacturer
-        dev.id = ds.DeviceSerialNumber
-        dev_ref = reference.Reference()
-        dev_ref.reference = f"Device/{dev.id}"
-        series_data["performer"] = [
-            {
-                "actor": dev_ref
-            }
-        ]
-    except Exception:
-        pass
-
     ########### extension stuff here ##########
 
     series_extensions = []
@@ -205,6 +186,29 @@ def _add_imaging_study_series(study: imagingstudy.ImagingStudy, ds: dataset.File
         series_extensions.append(e_contrast)
 
     series_data["extension"] = series_extensions
+
+    ###### Creating device resource ########
+
+    global devices_list_global
+
+    try: 
+        dev, dev_id = create_device.create_device_resource(ds.Manufacturer, ds.ManufacturerModelName, ds.DeviceSerialNumber)
+        devices_list_global.append([dev, dev_id])
+
+    except Exception:
+        pass
+
+    try:
+        dev_ref = reference.Reference()
+        dev_ref.reference = "Device/"+str(dev_id)
+        series_data["performer"] = [
+            {
+                "actor": dev_ref
+            }
+        ]
+    except Exception:
+        pass
+
 
     # Creating New Series
     series = imagingstudy.ImagingStudySeries(**series_data)
@@ -255,11 +259,6 @@ def _create_imaging_study(ds, fp, dcmDir, include_instances) -> imagingstudy.Ima
     patIdent.value = patID9
     patientRef.identifier = patIdent
     study_data["subject"] = patientRef
-
-    # study_data["endpoint"] = []
-    # endpoint = reference.Reference()
-    # endpoint.reference = "file://" + dcmDir
-    # study_data["endpoint"].append(endpoint)
 
     studyTime = None
     try:
@@ -359,4 +358,4 @@ def process_dicom_2_fhir(dcmDir: str, include_instances: bool) -> imagingstudy.I
 
     study_list_modality_global = []
 
-    return imagingStudy, studyInstanceUID, accession_number
+    return imagingStudy, studyInstanceUID, accession_number, devices_list_global
