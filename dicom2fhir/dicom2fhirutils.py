@@ -10,6 +10,8 @@ from fhir.resources.R4B import fhirtypes
 from fhir.resources.R4B import reference
 from fhir.resources.R4B import extension
 import pandas as pd
+import json
+from pathlib import Path
 import os
 import logging
 
@@ -23,46 +25,18 @@ SCANNING_VARIANT_SYS = "https://dicom.nema.org/medical/dicom/current/output/chtm
 
 SOP_CLASS_SYS = "urn:ietf:rfc:3986"
 
-BODYSITE_SNOMED_MAPPING_URL = "https://dicom.nema.org/medical/dicom/current/output/chtml/part16/chapter_L.html"
+# load rather expesive resource into global var to make it reusable
+BODYSITE_SNOMED_MAPPING_PATH = Path(__file__).parent / "resources" / "terminologies" / "bodysite_snomed.json"
+BODYSITE_SNOMED_MAPPING = pd.DataFrame(json.loads(BODYSITE_SNOMED_MAPPING_PATH.read_text(encoding="utf-8")))
 
-
-def _get_snomed_bodysite_mapping(url, debug: bool = False):
-
-    logging.info(f"Get BodySite-SNOMED mapping from {url}")
-    df = pd.read_html(url, converters={
-        "Code Value": str
-    })
-
-    # required columns
-    req_cols = ["Code Value", "Code Meaning", "Body Part Examined"]
-
-    mapping = df[2][req_cols]
-
-    # remove empty values:
-    mapping = mapping[~mapping['Body Part Examined'].isnull()]
-
-    if debug:
-        fn_out = os.path.join(
-            os.curdir,
-            'mapping_dicom_snomed.csv'
-        )
-        mapping.to_csv(
-            path_or_buf=fn_out,
-            index=False
-        )
-
-    return mapping
-
-
-# get mapping table
-mapping_table = _get_snomed_bodysite_mapping(url=BODYSITE_SNOMED_MAPPING_URL)
-
-
-def _get_snomed(dicom_bodypart, sctmapping):
-    # codes are strings
-    return sctmapping.loc[sctmapping['Body Part Examined']
-                          == dicom_bodypart]["Code Value"].values[0]
-
+def _get_snomed(dicom_bodypart: str, sctmapping: pd.DataFrame) -> dict[str, str] | None:
+    _rec = sctmapping.loc[sctmapping['Body Part Examined'] == dicom_bodypart]
+    if _rec.empty:
+        return None
+    return {
+        'code': _rec["Code Value"].iloc[0],
+        'display': _rec["Code Meaning"].iloc[0],
+    }
 
 def gen_accession_identifier(id):
     idf = identifier.Identifier()
@@ -224,15 +198,18 @@ def gen_reason(reason, reasonStr):
     return reasonList
 
 
-def gen_coding(value, system):
-    if isinstance(value, list):
+def gen_coding(code: str, system: str|None = None, display: str|None = None):
+    if isinstance(code, list):
         raise Exception(
         "More than one code for type Coding detected")
     c = coding.Coding()
+    c.code = code
     c.system = system
-    c.code = value
-    return c
+    c.display = display
+    if system is None and display is None:
+        c.userSelected = True
 
+    return c
 
 def gen_codeable_concept(value_list: list, system):
     c = codeableconcept.CodeableConcept()
@@ -242,16 +219,18 @@ def gen_codeable_concept(value_list: list, system):
         c.coding.append(m)
     return c
 
-
 def gen_bodysite_coding(bd):
 
-    bd_snomed = _get_snomed(bd, sctmapping=mapping_table)
-    c = gen_coding(
-        value=bd_snomed,
-        system="http://snomed.info/sct"
-    )
-    return c
-
+    bd_snomed = _get_snomed(bd, sctmapping=BODYSITE_SNOMED_MAPPING)
+    
+    if bd_snomed is None:
+        return gen_coding(code=str(bd))
+    
+    return gen_coding(
+        code=str(bd_snomed['code']),
+        system="http://snomed.info/sct",
+        display=bd_snomed['display']
+    ) 
 
 # def update_study_modality_list(study_list_modality: list, modality: str):
 #     if study_list_modality is None or len(study_list_modality) <= 0:
@@ -298,13 +277,6 @@ def gen_bodysite_coding(bd):
 
     # study.laterality__ext.append(laterality)
     # return
-
-
-def gen_coding_text_only(text):
-    c = coding.Coding()
-    c.code = text
-    c.userSelected = True
-    return c
 
 
 def dcm_coded_concept(CodeSequence):
