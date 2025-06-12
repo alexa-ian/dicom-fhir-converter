@@ -9,7 +9,7 @@ class testDicom2FHIR(unittest.TestCase):
     def test_instance_dicom2fhir(self):
         dcmDir = os.path.join(os.getcwd(), "dicom2fhir", "tests", "resources", "dcm-instance")
         study: imagingstudy.ImagingStudy
-        study, _ = dicom2fhir.process_dicom_2_fhir(dcmDir)
+        study = dicom2fhir.process_dicom_2_fhir(dcmDir)
 
         self.assertIsNotNone(study, "No ImagingStudy was generated")
         self.assertEqual(study.numberOfSeries, 1, "Number of Series in the study mismatch")
@@ -36,7 +36,7 @@ class testDicom2FHIR(unittest.TestCase):
     def test_multi_instance_dicom(self):
         dcmDir = os.path.join(os.getcwd(), "dicom2fhir", "tests", "resources", "dcm-multi-instance")
         study: imagingstudy.ImagingStudy
-        study, _ = dicom2fhir.process_dicom_2_fhir(dcmDir)
+        study = dicom2fhir.process_dicom_2_fhir(dcmDir)
         self.assertIsNotNone(study, "No ImagingStudy was generated")
         self.assertEqual(study.numberOfSeries, 1)
         self.assertEqual(study.numberOfInstances, 5)
@@ -49,7 +49,7 @@ class testDicom2FHIR(unittest.TestCase):
     def test_multi_series_dicom(self):
         dcmDir = os.path.join(os.getcwd(), "dicom2fhir", "tests", "resources", "dcm-multi-series")
         study: imagingstudy.ImagingStudy
-        study, _ = dicom2fhir.process_dicom_2_fhir(dcmDir)
+        study = dicom2fhir.process_dicom_2_fhir(dcmDir)
         self.assertIsNotNone(study, "No ImagingStudy was generated")
         self.assertEqual(study.numberOfSeries, 4, "Number of Series in the study mismatch")
         self.assertEqual(study.numberOfInstances, 4, "Number of Instances in the study mismatch")

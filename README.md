@@ -137,5 +137,7 @@ Until such time, all of the a data is included within a single resource.
 }
 ```
 
+## Todo 
 
-
+- [ ] Allow to pass custom function to create FHIR resource ids from business identifiers
+- [ ] Add support for DICOMweb data inputs
