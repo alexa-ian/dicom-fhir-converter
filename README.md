@@ -22,7 +22,8 @@ The assumption is that all instances are copied into a single folder prior to ca
 If you need to update the bodysite Snomed mappings run:
 
 ```bash
-./dicom2fhir/build_terminologies.py
+cd dicom2fhir 
+./build_terminologies.py
 ```
 
 ## Structure 
