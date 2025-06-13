@@ -5,7 +5,7 @@ import json
 import pydicom
 from .. import dicom2fhir
 from fhir.resources.R4B import imagingstudy
-
+from .. import helpers
 
 class testDicom2FHIR(unittest.TestCase):
 
@@ -67,24 +67,6 @@ class testDicom2FHIR(unittest.TestCase):
         import psycopg2
         import psycopg2.extras
 
-        def env_or_config(env: str, config_path: str, config: dict):
-            """
-            Return the value of an environment variable or a configuration key.
-            If neither is set raise a ValueError.
-            """
-            if env in os.environ:
-                return os.environ[env]
-
-            val = config
-            for path in config_path.split('.'):
-                if not isinstance(val, dict) or path not in val:
-                    raise ValueError(f"Neither environment variable '{env}' nor configuration key '{config_path}' is set.")
-                val = val[path]
-
-            if val is None:
-                raise ValueError(f"Neither environment variable '{env}' nor configuration key '{config_path}' is set.")
-            return val
-
         def load_fmx_conn_params(config: dict) -> dict:
             """
             Load connection params from YAML and inject password from ENV.
@@ -93,10 +75,10 @@ class testDicom2FHIR(unittest.TestCase):
                 raise ValueError("FMX_PASSWORD environment variable is not set.")
 
             return {
-                "database": env_or_config("FMX_DATABASE", "fmx.database", config),
-                "user":  env_or_config("FMX_USER", "fmx.user", config),
-                "host": env_or_config("FMX_HOST", "fmx.host", config),
-                "port": int(env_or_config("FMX_PORT", "fmx.port", config)),
+                "database": helpers.env_or_config("FMX_DATABASE", "fmx.database", config),
+                "user":  helpers.env_or_config("FMX_USER", "fmx.user", config),
+                "host": helpers.env_or_config("FMX_HOST", "fmx.host", config),
+                "port": int(helpers.env_or_config("FMX_PORT", "fmx.port", config)),
                 "password": os.getenv("FMX_PASSWORD")
             }
         

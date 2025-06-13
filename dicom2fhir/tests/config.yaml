@@ -1,0 +1,2 @@
+directory_parser:
+  skip_invalid_files: true

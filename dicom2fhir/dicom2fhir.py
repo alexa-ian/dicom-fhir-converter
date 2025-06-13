@@ -15,6 +15,7 @@ import logging
 import hashlib
 from typing import Tuple, Iterable, Union
 from dicom2fhir.dicom2fhirutils import gen_coding, gen_started_datetime, SOP_CLASS_SYS, ACQUISITION_MODALITY_SYS, gen_bodysite_coding, gen_accession_identifier, gen_studyinstanceuid_identifier, gen_codeable_concept, dcm_coded_concept, gen_procedurecode_array, gen_started_datetime, dcm_coded_concept, gen_reason
+from helpers import get_or
 
 StrPath = Union[str, PathLike]
 
@@ -267,7 +268,7 @@ def _finalize_imaging_study(imagingStudy) -> imagingstudy.ImagingStudy:
     imagingStudy.modality = list(modality_set.values())
     return imagingStudy
 
-def _process_dicom_2_fhir_instances(instances: Iterable[dataset.Dataset]) -> imagingstudy.ImagingStudy:
+def _process_dicom_2_fhir_instances(instances: Iterable[dataset.Dataset], config: dict) -> imagingstudy.ImagingStudy:
     imagingStudy = None
     for ds in instances:
         try:
@@ -287,7 +288,7 @@ def is_dicom_file(path: str) -> bool:
     except Exception:
         return False
 
-def _process_dicom_2_fhir_directory(dcmDir: StrPath, skip_invalid_files=True) -> imagingstudy.ImagingStudy:
+def _process_dicom_2_fhir_directory(dcmDir: StrPath, config: dict) -> imagingstudy.ImagingStudy:
     """
     Process DICOM files in a directory into an ImagingStudy FHIR resource.
 
@@ -297,6 +298,8 @@ def _process_dicom_2_fhir_directory(dcmDir: StrPath, skip_invalid_files=True) ->
     base = Path(dcmDir)
     if not base.is_dir():
         raise ValueError(f"Directory '{dcmDir}' not found")
+
+    skip_invalid_files = get_or(config, "directory_parser.skip_invalid_files", True)
 
     studyInstanceUID = None
     imagingStudy = None
@@ -320,7 +323,7 @@ def _process_dicom_2_fhir_directory(dcmDir: StrPath, skip_invalid_files=True) ->
 
     return _finalize_imaging_study(imagingStudy)
 
-def process_dicom_2_fhir(dcms: StrPath | Iterable[dataset.Dataset]) -> imagingstudy.ImagingStudy:
+def process_dicom_2_fhir(dcms: StrPath | Iterable[dataset.Dataset], config: dict = {}) -> imagingstudy.ImagingStudy:
     """
     Process DICOM files or datasets into an ImagingStudy FHIR resource.
     
@@ -328,6 +331,6 @@ def process_dicom_2_fhir(dcms: StrPath | Iterable[dataset.Dataset]) -> imagingst
     :return: ImagingStudy resource.
     """
     if isinstance(dcms, StrPath):
-        return _process_dicom_2_fhir_directory(dcms)
+        return _process_dicom_2_fhir_directory(dcms, config)
     else:
-        return _process_dicom_2_fhir_instances(dcms)
+        return _process_dicom_2_fhir_instances(dcms, config)
