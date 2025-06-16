@@ -1,2 +1,9 @@
 directory_parser:
   skip_invalid_files: true
+
+generator:
+  imaging_study:
+    add_instances: true
+  patient:
+    add_extensions: true
+#  extra_resource_types: [Patient]

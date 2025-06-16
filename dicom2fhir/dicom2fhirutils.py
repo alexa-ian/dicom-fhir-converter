@@ -39,11 +39,11 @@ def _get_snomed(dicom_bodypart: str, sctmapping: pd.DataFrame) -> dict[str, str]
     }
 
 def gen_accession_identifier(id):
-    idf = identifier.Identifier()
+    idf = identifier.Identifier.model_construct()
     idf.use = "usual"
-    idf.type = codeableconcept.CodeableConcept()
+    idf.type = codeableconcept.CodeableConcept.model_construct()
     idf.type.coding = []
-    acsn = coding.Coding()
+    acsn = coding.Coding.model_construct()
     acsn.system = TERMINOLOGY_CODING_SYS
     acsn.code = TERMINOLOGY_CODING_SYS_CODE_ACCESSION
 
@@ -53,26 +53,26 @@ def gen_accession_identifier(id):
 
 
 def gen_studyinstanceuid_identifier(id):
-    idf = identifier.Identifier()
+    idf = identifier.Identifier.model_construct()
     idf.system = "urn:dicom:uid"
     idf.value = "urn:oid:" + id
     return idf
 
 
 def get_patient_resource_ids(PatientID, IssuerOfPatientID):
-    idf = identifier.Identifier()
+    idf = identifier.Identifier.model_construct()
     idf.use = "usual"
     idf.value = PatientID
 
-    idf.type = codeableconcept.CodeableConcept()
+    idf.type = codeableconcept.CodeableConcept.model_construct()
     idf.type.coding = []
-    id_coding = coding.Coding()
+    id_coding = coding.Coding.model_construct()
     id_coding.system = TERMINOLOGY_CODING_SYS
     id_coding.code = TERMINOLOGY_CODING_SYS_CODE_MRN
     idf.type.coding.append(id_coding)
 
     if IssuerOfPatientID is not None:
-        idf.assigner = reference.Reference()
+        idf.assigner = reference.Reference.model_construct()
         idf.assigner.display = IssuerOfPatientID
 
     return idf
@@ -110,12 +110,12 @@ def calc_dob(dicom_dob):
 
 
 def inline_patient_resource(referenceId, PatientID, IssuerOfPatientID, patientName, gender, dob):
-    p = patient.Patient()
+    p = patient.Patient.model_construct()
     p.id = referenceId
     p.name = []
     # p.use = "official"
     p.identifier = [get_patient_resource_ids(PatientID, IssuerOfPatientID)]
-    hn = humanname.HumanName()
+    hn = humanname.HumanName.model_construct()
     hn.family = patientName.family_name
     if patientName.given_name != '':
         hn.given = [patientName.given_name]
@@ -131,8 +131,8 @@ def gen_procedurecode_array(procedures):
         return None
     fhir_proc = []
     for p in procedures:
-        concept = codeableconcept.CodeableConcept()
-        c = coding.Coding()
+        concept = codeableconcept.CodeableConcept.model_construct()
+        c = coding.Coding.model_construct()
         c.system = p["system"]
         c.code = p["code"]
         c.display = p["display"]
@@ -181,15 +181,15 @@ def gen_reason(reason, reasonStr):
         return None
     reasonList = []
     if reason is None or len(reason) <= 0:
-        rc = codeableconcept.CodeableConcept()
+        rc = codeableconcept.CodeableConcept.model_construct()
         rc.text = reasonStr
         reasonList.append(rc)
         return reasonList
 
     for r in reason:
-        rc = codeableconcept.CodeableConcept()
+        rc = codeableconcept.CodeableConcept.model_construct()
         rc.coding = []
-        c = coding.Coding()
+        c = coding.Coding.model_construct()
         c.system = r["system"]
         c.code = r["code"]
         c.display = r["display"]
@@ -202,7 +202,7 @@ def gen_coding(code: str, system: str|None = None, display: str|None = None):
     if isinstance(code, list):
         raise Exception(
         "More than one code for type Coding detected")
-    c = coding.Coding()
+    c = coding.Coding.model_construct()
     c.code = code
     c.system = system
     c.display = display
@@ -212,7 +212,7 @@ def gen_coding(code: str, system: str|None = None, display: str|None = None):
     return c
 
 def gen_codeable_concept(value_list: list, system):
-    c = codeableconcept.CodeableConcept()
+    c = codeableconcept.CodeableConcept.model_construct()
     c.coding = []
     for _l in value_list:
         m = gen_coding(_l, system)

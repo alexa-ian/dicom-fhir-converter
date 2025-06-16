@@ -1,18 +1,50 @@
 import os
+import yaml
 import unittest
 from unittest import skipUnless
-import json
+from pathlib import Path
+import hashlib
 import pydicom
 from .. import dicom2fhir
+from fhir.resources.R4B import bundle
 from fhir.resources.R4B import imagingstudy
 from .. import helpers
 
+def _extract_imaging_study_from_bundle(b: bundle.Bundle) -> imagingstudy.ImagingStudy:
+    """
+    Extract the ImagingStudy resource from a FHIR Bundle.
+    """
+    if not isinstance(b, bundle.Bundle):
+        raise TypeError("Expected a Bundle resource")
+
+    for entry in (b.entry or []):
+        if entry.resource and isinstance(entry.resource, imagingstudy.ImagingStudy):
+            return entry.resource
+
+    raise ValueError("No ImagingStudy resource found in the bundle")
+
 class testDicom2FHIR(unittest.TestCase):
+
+    def setUp(self):
+        # Set up any necessary configuration or environment variables
+        with open(Path(__file__).parent / "config.yaml") as f:
+            self.config = yaml.safe_load(f)
+
+            def _id_function(business_identifier: str):
+                """
+                Custom ID function to ensure unique IDs for resources.
+                """
+                return hashlib.sha256(business_identifier.encode('utf-8')).hexdigest()
+            self.config['id_function'] = _id_function
+
+        if not self.config:
+            raise ValueError("Configuration could not be loaded")
 
     def test_instance_dicom2fhir(self):
         dcmDir = os.path.join(os.getcwd(), "dicom2fhir", "tests", "resources", "dcm-instance")
         study: imagingstudy.ImagingStudy
-        study = dicom2fhir.process_dicom_2_fhir(dcmDir)
+        bundle = dicom2fhir.process_dicom_2_fhir(dcmDir, config=self.config)
+        study = _extract_imaging_study_from_bundle(bundle)
 
         self.assertIsNotNone(study, "No ImagingStudy was generated")
         self.assertEqual(study.numberOfSeries, 1, "Number of Series in the study mismatch")
@@ -38,8 +70,12 @@ class testDicom2FHIR(unittest.TestCase):
 
     def test_multi_instance_dicom(self):
         dcmDir = os.path.join(os.getcwd(), "dicom2fhir", "tests", "resources", "dcm-multi-instance")
-        study: imagingstudy.ImagingStudy
-        study = dicom2fhir.process_dicom_2_fhir(dcmDir)
+        bundle = dicom2fhir.process_dicom_2_fhir(dcmDir, config=self.config)
+
+        print(bundle.model_dump_json(indent=2))
+
+        study = _extract_imaging_study_from_bundle(bundle)
+
         self.assertIsNotNone(study, "No ImagingStudy was generated")
         self.assertEqual(study.numberOfSeries, 1)
         self.assertEqual(study.numberOfInstances, 5)
@@ -51,8 +87,12 @@ class testDicom2FHIR(unittest.TestCase):
 
     def test_multi_series_dicom(self):
         dcmDir = os.path.join(os.getcwd(), "dicom2fhir", "tests", "resources", "dcm-multi-series")
-        study: imagingstudy.ImagingStudy
-        study = dicom2fhir.process_dicom_2_fhir(dcmDir)
+        bundle = dicom2fhir.process_dicom_2_fhir(dcmDir, config=self.config)
+
+        print(bundle.model_dump_json(indent=2))
+
+        study = _extract_imaging_study_from_bundle(bundle)
+
         self.assertIsNotNone(study, "No ImagingStudy was generated")
         self.assertEqual(study.numberOfSeries, 4, "Number of Series in the study mismatch")
         self.assertEqual(study.numberOfInstances, 4, "Number of Instances in the study mismatch")
@@ -94,9 +134,11 @@ class testDicom2FHIR(unittest.TestCase):
                 cur.execute(sql)
 
                 instances = [pydicom.Dataset.from_json(row['tags']) for row in cur.fetchall()]
-                study = dicom2fhir.process_dicom_2_fhir(instances)
+                bundle = dicom2fhir.process_dicom_2_fhir(instances, config=self.config)
 
-                print(study)
+                print(bundle.model_dump_json(indent=2))
+
+                study = _extract_imaging_study_from_bundle(bundle)
 
                 self.assertIsNotNone(study, "No ImagingStudy was generated")
                 self.assertIsNotNone(study.series, "Series was not built for the study")

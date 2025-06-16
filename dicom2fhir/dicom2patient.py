@@ -3,6 +3,7 @@
 # dicom2fhir/utils/patient_mapping.py
 import re
 import datetime
+import uuid
 from typing import Union
 from pydicom.dataset import Dataset
 from pydicom.valuerep import PersonName
@@ -14,6 +15,7 @@ from fhir.resources.R4B.identifier import Identifier
 from fhir.resources.R4B.fhirtypes import DateType
 from fhir.resources.R4B.extension import Extension
 from fhir.resources.R4B.quantity import Quantity
+from dicom2fhir.helpers import get_or
 
 DATE8_REGEX = re.compile(r'^(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$')
 
@@ -82,11 +84,13 @@ def dicom_address_to_fhir(address_str: str) -> Address:
         country=parts[5] if len(parts) > 5 else None
     )
 
-def build_patient_resource(ds: Dataset) -> Patient:
+def build_patient_resource(ds: Dataset, config: dict) -> Patient:
+
     patient = Patient.model_construct()
 
     # Identifier
     if "PatientID" in ds:
+        patient.id = config['id_function'](ds.PatientID)
         patient.identifier = [
             Identifier.model_construct(
                 use="usual",
@@ -95,6 +99,8 @@ def build_patient_resource(ds: Dataset) -> Patient:
                 assigner={"display": ds.get("IssuerOfPatientID")} if "IssuerOfPatientID" in ds else None
             )
         ]
+    else:
+        patient.id = str(uuid.uuid4())
 
     # Name
     if "PatientName" in ds:
@@ -121,38 +127,40 @@ def build_patient_resource(ds: Dataset) -> Patient:
             ContactPoint.model_construct(system="phone", value=phone, use="home") for phone in tel
         ]
 
-    # Extensions
-    extensions = []
+    # Only add Extensions if configured
+    if get_or(config, "generator.patient.add_extensions", False):
 
-    if "PatientAge" in ds:
-        extensions.append(
-            Extension.construct(
-                url="http://hl7.org/fhir/StructureDefinition/patient-age",
-                valueAge={"value": int(ds.PatientAge[:-1]), "unit": "years"}
-            )
-        )
+        extensions = []
 
-    if "PatientWeight" in ds:
-        extensions.append(
-            Extension.construct(
-                url="http://hl7.org/fhir/StructureDefinition/bodyWeight",
-                valueQuantity=Quantity.construct(
-                    value=float(ds.PatientWeight), unit="kg", system="http://unitsofmeasure.org", code="kg"
+        if "PatientAge" in ds:
+            extensions.append(
+                Extension.model_construct(
+                    url="http://hl7.org/fhir/StructureDefinition/patient-age",
+                    valueAge={"value": int(ds.PatientAge[:-1]), "unit": "years"}
                 )
             )
-        )
 
-    if "PatientSize" in ds:
-        extensions.append(
-            Extension.construct(
-                url="http://hl7.org/fhir/StructureDefinition/bodyHeight",
-                valueQuantity=Quantity.construct(
-                    value=float(ds.PatientSize), unit="m", system="http://unitsofmeasure.org", code="m"
+        if "PatientWeight" in ds:
+            extensions.append(
+                Extension.construct(
+                    url="http://hl7.org/fhir/StructureDefinition/bodyWeight",
+                    valueQuantity=Quantity.model_construct(
+                        value=float(ds.PatientWeight), unit="kg", system="http://unitsofmeasure.org", code="kg"
+                    )
                 )
             )
-        )
 
-    if extensions:
-        patient.extension = extensions
+        if "PatientSize" in ds:
+            extensions.append(
+                Extension.model_construct(
+                    url="http://hl7.org/fhir/StructureDefinition/bodyHeight",
+                    valueQuantity=Quantity.model_construct(
+                        value=float(ds.PatientSize), unit="m", system="http://unitsofmeasure.org", code="m"
+                    )
+                )
+            )
+
+        if extensions:
+            patient.extension = extensions
 
     return patient

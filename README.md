@@ -26,6 +26,11 @@ cd dicom2fhir
 ./build_terminologies.py
 ```
 
+Activate tests against Firemetrics:
+```bash
+export RUN_FMX_TESTS=1
+```
+
 ## Structure 
 The FHIR Imaging Study id is being generated internally within the library. 
 The DICOM Study UID is actually stored as part of the "identifier" (see ```"system":"urn:dicom:uid"``` object for DICOM study uid.
