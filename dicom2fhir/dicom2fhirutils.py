@@ -163,18 +163,16 @@ def gen_started_datetime(dt, tm):
     dt_date = datetime.strptime(dt_string, dt_pattern)
 
     # strangely, providing the datetime.date object does not work
-    fhirDtm = fhirtypes.DateTime(
+    fhirDtm = datetime(
         dt_date.year,
         dt_date.month,
         dt_date.day,
         dt_date.hour,
         dt_date.minute,
-        dt_date.second,
-        tzinfo="+01:00"
+        dt_date.second
     )
 
     return fhirDtm
-
 
 def gen_reason(reason, reasonStr):
     if reason is None and reasonStr is None:

@@ -1,6 +1,5 @@
 
-
-# dicom2fhir/utils/patient_mapping.py
+# -*- coding: utf-8 -*-
 import re
 import datetime
 import uuid
@@ -126,41 +125,5 @@ def build_patient_resource(ds: Dataset, config: dict) -> Patient:
         patient.telecom = [
             ContactPoint.model_construct(system="phone", value=phone, use="home") for phone in tel
         ]
-
-    # Only add Extensions if configured
-    if get_or(config, "generator.patient.add_extensions", False):
-
-        extensions = []
-
-        if "PatientAge" in ds:
-            extensions.append(
-                Extension.model_construct(
-                    url="http://hl7.org/fhir/StructureDefinition/patient-age",
-                    valueAge={"value": int(ds.PatientAge[:-1]), "unit": "years"}
-                )
-            )
-
-        if "PatientWeight" in ds:
-            extensions.append(
-                Extension.construct(
-                    url="http://hl7.org/fhir/StructureDefinition/bodyWeight",
-                    valueQuantity=Quantity.model_construct(
-                        value=float(ds.PatientWeight), unit="kg", system="http://unitsofmeasure.org", code="kg"
-                    )
-                )
-            )
-
-        if "PatientSize" in ds:
-            extensions.append(
-                Extension.model_construct(
-                    url="http://hl7.org/fhir/StructureDefinition/bodyHeight",
-                    valueQuantity=Quantity.model_construct(
-                        value=float(ds.PatientSize), unit="m", system="http://unitsofmeasure.org", code="m"
-                    )
-                )
-            )
-
-        if extensions:
-            patient.extension = extensions
 
     return patient

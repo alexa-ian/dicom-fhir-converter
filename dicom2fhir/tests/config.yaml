@@ -1,9 +1,13 @@
+#dicom:
+#  timezone: "Europe/Berlin"
+
 directory_parser:
   skip_invalid_files: true
 
 generator:
   imaging_study:
+    # add SOP Instanes to ImagingStudy resource?
     add_instances: true
-  patient:
-    add_extensions: true
-#  extra_resource_types: [Patient]
+  observation:
+    # add size and body weight as vital sign Observations?
+    add_vital_signs: true

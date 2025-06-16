@@ -6,6 +6,7 @@ from pydicom import dataset
 import logging
 from dicom2fhir.dicom2fhirutils import gen_coding, gen_started_datetime, SOP_CLASS_SYS, ACQUISITION_MODALITY_SYS, gen_bodysite_coding, gen_accession_identifier, gen_studyinstanceuid_identifier, dcm_coded_concept, gen_procedurecode_array, gen_started_datetime, dcm_coded_concept, gen_reason
 from dicom2fhir.dicom2patient import build_patient_resource
+from dicom2fhir.dicom2observation import build_observation_resources
 from dicom2fhir.helpers import get_or
 
 class Dicom2FHIRBundle():
@@ -19,6 +20,7 @@ class Dicom2FHIRBundle():
         self.instances = {}
         # Patient
         self.pat: patient.Patient | None = None
+        self.obs = []
         self.config = config
         
     def add(self, ds: dataset.Dataset):
@@ -32,6 +34,8 @@ class Dicom2FHIRBundle():
         if self.study is None:
             self.pat = build_patient_resource(ds, self.config)
             self._create_imaging_study(ds)
+            if get_or(self.config, "generator.observation.add_vital_signs", True):
+                self.obs = build_observation_resources(ds, self.pat, self.study, self.config) or []
 
         self._add_imaging_study_series(ds)
         self._add_instance(ds)
@@ -40,7 +44,7 @@ class Dicom2FHIRBundle():
 
         study_data = {}
         study_data["resource_type"] = "ImagingStudy"
-        study_data["id"] = str(uuid.uuid4())
+        study_data["id"] = self.config['id_function'](ds.StudyInstanceUID)
         study_data["status"] = "available"
         try:
             if ds.StudyDescription != '':
@@ -213,6 +217,17 @@ class Dicom2FHIRBundle():
         """
         Create the final transaction bundle.
         """
+
+        def _to_entry(resource):
+            return {
+                'fullUrl': f"urn:uuid:{resource.id}",
+                'resource': resource,
+                'request': {
+                    'method': 'PUT',
+                    'url': f"{resource.__resource_type__}/{resource.id}"
+                }
+            }
+
         if not self.study:
             raise ValueError("No ImagingStudy data has been added")
 
@@ -225,21 +240,7 @@ class Dicom2FHIRBundle():
             'type': "transaction",
             'id': str(uuid.uuid4()),
             'entry': [
-                {
-                    'fullUrl': f"urn:uuid:{_study.id}",
-                    'resource': _study,
-                    'request': {
-                        'method': 'PUT',
-                        'url': f"ImagingStudy/{_study.id}"
-                    }
-                },
-                {
-                    'fullUrl': f"urn:uuid:{self.pat.id}",
-                    'resource': self.pat,
-                    'request': {
-                        'method': 'PUT',
-                        'url': f"Patient/{self.pat.id}"
-                    }
-                }
-            ]
+                _to_entry(_study),
+                _to_entry(self.pat)
+            ] + [_to_entry(o) for o in self.obs]
         })
