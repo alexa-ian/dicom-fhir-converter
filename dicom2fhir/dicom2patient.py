@@ -89,7 +89,7 @@ def build_patient_resource(ds: Dataset, config: dict) -> Patient:
 
     # Identifier
     if "PatientID" in ds:
-        patient.id = config['id_function'](ds.PatientID)
+        patient.id = config['id_function']('Patient', ds)
         patient.identifier = [
             Identifier.model_construct(
                 use="usual",

@@ -2,13 +2,14 @@ import uuid
 from fhir.resources.R4B import bundle
 from fhir.resources.R4B import imagingstudy
 from fhir.resources.R4B import patient
+from fhir.resources.R4B import device
 from pydicom import dataset
 import logging
 from dicom2fhir.dicom2fhirutils import gen_coding, gen_started_datetime, SOP_CLASS_SYS, ACQUISITION_MODALITY_SYS, gen_bodysite_coding, gen_accession_identifier, gen_studyinstanceuid_identifier, dcm_coded_concept, gen_procedurecode_array, gen_started_datetime, dcm_coded_concept, gen_reason
 from dicom2fhir.dicom2patient import build_patient_resource
 from dicom2fhir.dicom2observation import build_observation_resources
+from dicom2fhir.dicom2device import build_device_resource
 from dicom2fhir.helpers import get_or
-
 class Dicom2FHIRBundle():
 
     def __init__(self, config: dict = {}):
@@ -18,6 +19,8 @@ class Dicom2FHIRBundle():
         self.study: imagingstudy.ImagingStudy | None = None
         self.series = {}
         self.instances = {}
+        # Device
+        self.device: device.Device | None = None
         # Patient
         self.pat: patient.Patient | None = None
         self.obs = []
@@ -32,6 +35,7 @@ class Dicom2FHIRBundle():
 
         # is first instance?
         if self.study is None:
+            self.device = build_device_resource(ds, self.config)
             self.pat = build_patient_resource(ds, self.config)
             self._create_imaging_study(ds)
             if get_or(self.config, "generator.observation.add_vital_signs", True):
@@ -44,7 +48,7 @@ class Dicom2FHIRBundle():
 
         study_data = {}
         study_data["resource_type"] = "ImagingStudy"
-        study_data["id"] = self.config['id_function'](ds.StudyInstanceUID)
+        study_data["id"] = self.config['id_function']("ImagingStudy", ds)
         study_data["status"] = "available"
         try:
             if ds.StudyDescription != '':
@@ -241,6 +245,7 @@ class Dicom2FHIRBundle():
             'id': str(uuid.uuid4()),
             'entry': [
                 _to_entry(_study),
-                _to_entry(self.pat)
+                _to_entry(self.pat),
+                _to_entry(self.device)
             ] + [_to_entry(o) for o in self.obs]
         })

@@ -30,13 +30,6 @@ class testDicom2FHIR(unittest.TestCase):
         with open(Path(__file__).parent / "config.yaml") as f:
             self.config = yaml.safe_load(f)
 
-            def _id_function(business_identifier: str):
-                """
-                Custom ID function to ensure unique IDs for resources.
-                """
-                return hashlib.sha256(business_identifier.encode('utf-8')).hexdigest()
-            self.config['id_function'] = _id_function
-
         if not self.config:
             raise ValueError("Configuration could not be loaded")
 

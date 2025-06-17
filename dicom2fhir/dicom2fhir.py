@@ -9,6 +9,7 @@ from pydicom import dataset
 from tqdm import tqdm
 import logging
 from typing import Iterable, Union
+import dicom2fhir.helpers as helpers
 from dicom2fhir.helpers import get_or
 from dicom2fhir.dicom2fhirbundle import Dicom2FHIRBundle
 
@@ -67,6 +68,10 @@ def process_dicom_2_fhir(dcms: StrPath | Iterable[dataset.Dataset], config: dict
     :param dcms: Either a directory containing DICOM files or an iterable of DICOM datasets.
     :return: ImagingStudy resource.
     """
+
+    # use default id function for FHIR resource id generation
+    if 'id_function' not in config:
+        config['id_function'] = helpers.default_id_function()
 
     instances = _parse_directory(dcms, config) if isinstance(dcms, StrPath) else dcms
     return _create_bundle(instances, config)
